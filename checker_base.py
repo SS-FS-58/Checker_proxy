@@ -4,7 +4,7 @@ import re
 import sys
 import time
 import subprocess
-import httplib
+import http.client
 import threading
 import telnetlib
 import requests
@@ -232,7 +232,7 @@ def save_bing_response(content, protocol, host, port):
         ensure_dir(filename)
         save_file(filename, content)
     except Exception as ex:
-        print 'Error: ' + str(ex)
+        print ('Error: ' + str(ex))
 
 
 def visit_verifier(protocol, host, port, timeout):
@@ -369,7 +369,7 @@ def check_proxy(proxy, protocol="https", check_address="https://gondorland.com/i
             else:
                 stat = False
     except requests.exceptions.Timeout:
-        print "[%i] Timeout at %s for %s" % (os.getpid(), time.time(), str(proxy))
+        print ("[%i] Timeout at %s for %s" % (os.getpid(), time.time(), str(proxy)))
         stat = False
     except Exception as e:
         import traceback
@@ -380,8 +380,8 @@ def check_proxy(proxy, protocol="https", check_address="https://gondorland.com/i
         stat = False
 
     if stat:
-        print "[%s pid%i] %s (port %s) is %s" % (
-            threading.currentThread().getName(), os.getpid(), proxy[0], proxy[1], "valid" if stat else "invalid"), err
+        print ("[%s pid%i] %s (port %s) is %s" % (
+            threading.currentThread().getName(), os.getpid(), proxy[0], proxy[1], "valid" if stat else "invalid"), err)
 
     if not stat:
         return (False, False)
@@ -398,14 +398,14 @@ def is_bad_sock_proxy(pip, host):
         req = urllib2.Request('https://gondorland.com/ipcheck.php')  # change the url address here
         response = urllib2.urlopen(req)
         if not host in response.read():
-            print pip, 'error'
+            print (pip, 'error')
             return False
-    except urllib2.HTTPError, e:
-        print pip, ':Error code: ', e.code
+    except urllib2.HTTPError as e:
+        print (pip, ':Error code: ', e.code)
         return False
-    except Exception, detail:
+    except Exception as detail:
 
-        print pip, ":ERROR:", detail
+        print (pip, ":ERROR:", detail)
         return False
     return True
 
@@ -418,11 +418,11 @@ def is_good_proxy(pip, timeout):
         urllib2.install_opener(opener)
         req = urllib2.Request('https://gondorland.com/ipcheck.php')  # change the url address here
         sock = urllib2.urlopen(req, timeout=timeout)
-    except urllib2.HTTPError, e:
-        print pip, ':Error code: ', e.code
+    except urllib2.HTTPError as e:
+        print (pip, ':Error code: ', e.code)
         return False
-    except Exception, detail:
-        print pip, ":ERROR:", detail
+    except Exception as detail:
+        print (pip, ":ERROR:", detail)
         return False
     return True
 
@@ -597,7 +597,7 @@ def load_proxies_from_cfg(cfg, namespace=None):
 
 
 def start_proccess(proxies):
-    print "[pid %i] Started process" % os.getpid()
+    print ("[pid %i] Started process" % os.getpid())
     for proxy in proxies:
         res = check_proxy(proxy)
         if res[0]:
@@ -625,21 +625,21 @@ def start_checker(haproxy, ctl, command, protocol, ftp_list, http_list, file_lis
         subprocess.call(ctl.split(" "), stdout=dnull, stderr=dnull)
         return 0
     elif command in ("check", "dump"):
-        print "Getting ftp sources"
+        print ("Getting ftp sources")
         for ftp_source in ftp_list:
             try:
                 proxies += get_proxy_from_ftp(*ftp_source)
             except:
-                print "FTP SOURCE", ftp_source, "is broken"
+                print ("FTP SOURCE", ftp_source, "is broken")
                 continue
-        print "Getting url sources"
+        print ("Getting url sources")
         for url_source in http_list:
             try:
                 proxies += get_proxy_from_http(url_source)
             except:
-                print "HTTP SOURCE", url_source, "is broken"
+                print ("HTTP SOURCE", url_source, "is broken")
                 continue
-        print "Getting file sources"
+        print ("Getting file sources")
         for file_source in file_list:
             proxies += get_proxy_from_txt(file_source)
     else:
@@ -663,7 +663,7 @@ def start_checker(haproxy, ctl, command, protocol, ftp_list, http_list, file_lis
         return 1
 
     if no_check:
-        print "[pid watcher] Writing to without check", haproxy
+        print ("[pid watcher] Writing to without check", haproxy)
         submit_proxy(haproxy, map(lambda p: [True, p], proxies), protocol=protocol + "r", mode="replace")
         if ctl:
             subprocess.call(ctl.split(" "), stdout=dnull, stderr=dnull)
@@ -680,11 +680,11 @@ def start_checker(haproxy, ctl, command, protocol, ftp_list, http_list, file_lis
         if recheck:
             proxies = []
 
-        print "I have %i proxies before loading cfg file" % (len(proxies))
+        print ("I have %i proxies before loading cfg file" % (len(proxies)))
         proxies += load_proxies_from_cfg(haproxy, ns)
-        print "I have %i proxies after loading cfg file" % (len(proxies))
+        print ("I have %i proxies after loading cfg file" % (len(proxies)))
         proxies = f5(proxies)
-        print "I have %i proxies after f5 funciton" % (len(proxies))
+        print ("I have %i proxies after f5 funciton" % (len(proxies)))
         proxies = proxies[:100000000]
 
         if not proxies:
@@ -694,7 +694,7 @@ def start_checker(haproxy, ctl, command, protocol, ftp_list, http_list, file_lis
             max_proc = len(proxies)
 
         threads = []
-        print "[pid master] Starting %i threads. Will check %i proxies" % (max_proc, len(proxies))
+        print ("[pid master] Starting %i threads. Will check %i proxies" % (max_proc, len(proxies)))
         offset = 0
         pcount = len(proxies)
 
@@ -702,13 +702,13 @@ def start_checker(haproxy, ctl, command, protocol, ftp_list, http_list, file_lis
         valid_proxy = p.map(check_proxy_x, proxies)  # , chunksize=100) # chunksize uncommented
         del proxies
 
-        print "[pid watcher] Writing to ", haproxy, "@%s" % ns
+        print ("[pid watcher] Writing to ", haproxy, "@%s" % ns)
         if command in ("check", "recheck"):
             submit_proxy(haproxy, valid_proxy, "add", tor=False, protocol=ns, namespace=ns)
         else:
             submit_proxy(haproxy, valid_proxy, "replace", tor=False, protocol=ns, namespace=ns)
 
-        print "[pid master] VALID: ", len(filter(lambda x: x[0] == True, valid_proxy))
+        print ("[pid master] VALID: ", len(filter(lambda x: x[0] == True, valid_proxy)))
         if ctl:
             subprocess.call(ctl.split(" "), stdout=dnull, stderr=dnull)
         del valid_proxy
@@ -761,7 +761,7 @@ class CheckerThread(Process):
 
             if next_task is None:
                 # Poison pill means shutdown
-                print '%s: Exiting' % self.name
+                print ('%s: Exiting' % self.name)
                 self.task_queue.task_done()
                 break
             self.result_queue.put(self.checker(next_task))
